@@ -54,12 +54,20 @@ class OneDriveProvider : CloudStorageProvider {
     override suspend fun initialize(context: Context) {
         appContext = context.applicationContext
 
+        // Check if MSAL config exists
+        val configResId = getMsalConfigResourceId()
+        if (configResId == 0) {
+            // No MSAL config file - OneDrive won't be available until user configures it
+            _authState.value = CloudAuthState.NotAuthenticated
+            return
+        }
+
         try {
             // Create MSAL configuration programmatically
             msalApp = suspendCoroutine { continuation ->
                 PublicClientApplication.createSingleAccountPublicClientApplication(
                     context,
-                    getMsalConfig(),
+                    configResId,
                     object : IPublicClientApplication.ISingleAccountApplicationCreatedListener {
                         override fun onCreated(application: ISingleAccountPublicClientApplication) {
                             continuation.resume(application)
@@ -90,17 +98,21 @@ class OneDriveProvider : CloudStorageProvider {
         }
     }
 
-    private fun getMsalConfig(): Int {
+    private fun getMsalConfigResourceId(): Int {
         // This returns the resource ID for the MSAL config
-        // Users need to create this file in res/raw/auth_config.json
+        // Users need to create this file in res/raw/auth_config_onedrive.json
         return appContext.resources.getIdentifier("auth_config_onedrive", "raw", appContext.packageName)
+    }
+
+    private fun hasMsalConfig(): Boolean {
+        return getMsalConfigResourceId() != 0
     }
 
     override suspend fun signIn(activity: Activity): Result<CloudAccount> {
         _authState.value = CloudAuthState.Authenticating
 
         return try {
-            val app = msalApp ?: return Result.failure(Exception("MSAL not initialized"))
+            val app = msalApp ?: return Result.failure(Exception("OneDrive not configured. Please add MSAL config file."))
 
             val result = suspendCoroutine<IAuthenticationResult> { continuation ->
                 val signInParams = SignInParameters.builder()

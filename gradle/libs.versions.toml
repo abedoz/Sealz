@@ -45,7 +45,7 @@ microsoftIdentityClient = "4.9.0"
 microsoftGraph = "5.77.0"
 
 # AI/ML
-geminiSdk = "0.1.2"
+geminiSdk = "0.7.0"
 
 ktfmt = "0.20.1"
 
