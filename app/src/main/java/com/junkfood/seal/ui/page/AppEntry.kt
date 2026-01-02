@@ -65,9 +65,14 @@ import com.junkfood.seal.ui.page.settings.network.CookiesViewModel
 import com.junkfood.seal.ui.page.settings.network.NetworkPreferences
 import com.junkfood.seal.ui.page.settings.network.WebViewPage
 import com.junkfood.seal.ui.page.settings.troubleshooting.TroubleShootingPage
+import com.junkfood.seal.ui.page.settings.cloud.CloudStorageSettings
+import com.junkfood.seal.ui.page.settings.ai.AISettings
 import com.junkfood.seal.ui.page.videolist.VideoListPage
+import com.junkfood.seal.ai.AIManager
+import com.junkfood.seal.cloud.CloudStorageManager
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 private const val TAG = "HomeEntry"
 
@@ -261,6 +266,20 @@ fun NavGraphBuilder.settingsGraph(
         }
         animatedComposable(Route.TROUBLESHOOTING) {
             TroubleShootingPage(onNavigateTo = onNavigateTo, onBack = onNavigateBack)
+        }
+        animatedComposable(Route.CLOUD_STORAGE) {
+            val cloudStorageManager: CloudStorageManager = koinInject()
+            CloudStorageSettings(
+                cloudStorageManager = cloudStorageManager,
+                onNavigateBack = onNavigateBack
+            )
+        }
+        animatedComposable(Route.AI_SETTINGS) {
+            val aiManager: AIManager = koinInject()
+            AISettings(
+                aiManager = aiManager,
+                onNavigateBack = onNavigateBack
+            )
         }
     }
 }

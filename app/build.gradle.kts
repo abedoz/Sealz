@@ -186,6 +186,15 @@ dependencies {
 
     implementation(libs.mmkv)
 
+    // Cloud Storage - Google Drive
+    implementation(libs.bundles.cloudStorageGoogle)
+
+    // Cloud Storage - Microsoft OneDrive
+    implementation(libs.bundles.cloudStorageMicrosoft)
+
+    // AI/ML - Gemini
+    implementation(libs.google.ai.generativeai)
+
     testImplementation(libs.junit4)
     androidTestImplementation(libs.androidx.test.ext)
     androidTestImplementation(libs.androidx.test.espresso.core)

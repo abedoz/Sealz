@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 private const val TAG = "DownloaderV2"
 
@@ -97,6 +98,7 @@ class DownloaderV2Impl(private val appContext: Context) : DownloaderV2, KoinComp
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val taskStateMap = mutableStateMapOf<Task, Task.State>()
     private val snapshotFlow = snapshotFlow { taskStateMap.toMap() }
+    private val postDownloadHandler: PostDownloadHandler by inject()
 
     init {
         scope.launch(Dispatchers.Default) {
@@ -332,6 +334,9 @@ class DownloaderV2Impl(private val appContext: Context) : DownloaderV2, KoinComp
                                     else null,
                             )
                         }
+
+                        // Trigger post-download operations (cloud upload, AI transcription)
+                        postDownloadHandler.onDownloadComplete(pathList.firstOrNull())
                     }
                     .onFailure { throwable ->
                         if (throwable is YoutubeDL.CanceledException) {

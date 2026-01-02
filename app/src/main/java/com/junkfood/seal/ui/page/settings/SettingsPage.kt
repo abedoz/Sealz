@@ -18,10 +18,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AudioFile
 import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.EnergySavingsLeaf
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.SettingsApplications
 import androidx.compose.material.icons.rounded.SignalCellular4Bar
 import androidx.compose.material.icons.rounded.SignalWifi4Bar
@@ -193,6 +195,24 @@ fun SettingsPage(onNavigateBack: () -> Unit, onNavigateTo: (String) -> Unit) {
                         else Icons.Rounded.SignalWifi4Bar,
                 ) {
                     onNavigateTo(Route.NETWORK_PREFERENCES)
+                }
+            }
+            item {
+                SettingItem(
+                    title = "Cloud Storage",
+                    description = "Google Drive & OneDrive integration",
+                    icon = Icons.Rounded.Cloud,
+                ) {
+                    onNavigateTo(Route.CLOUD_STORAGE)
+                }
+            }
+            item {
+                SettingItem(
+                    title = "AI Features",
+                    description = "Transcription with Gemini AI",
+                    icon = Icons.Rounded.Psychology,
+                ) {
+                    onNavigateTo(Route.AI_SETTINGS)
                 }
             }
             item {

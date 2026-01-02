@@ -32,6 +32,10 @@ object Route {
     const val DONATE = "donate"
     const val TROUBLESHOOTING = "troubleshooting"
 
+    // Cloud Storage & AI
+    const val CLOUD_STORAGE = "cloud_storage"
+    const val AI_SETTINGS = "ai_settings"
+
     const val TASK_HASHCODE = "task_hashcode"
     const val TEMPLATE_ID = "template_id"
 }
