@@ -1,13 +1,13 @@
 package com.junkfood.seal.ai
 
 import android.content.Context
+import android.util.Base64
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import com.junkfood.seal.util.PreferenceUtil.getString
 import com.junkfood.seal.util.PreferenceUtil.updateString
 import java.io.File
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -126,9 +126,9 @@ class GeminiTranscriber(private val context: Context) {
             val audioBytes = audioFile.readBytes()
             val mimeType = getMimeType(audioFile)
 
-            // Create content with audio
+            // Create content with audio using inline data
             val inputContent = content {
-                blob(mimeType, audioBytes)
+                inlineData(mimeType, audioBytes)
                 text(buildTranscriptionPrompt(language))
             }
 
@@ -179,9 +179,9 @@ class GeminiTranscriber(private val context: Context) {
             val videoBytes = videoFile.readBytes()
             val mimeType = getMimeType(videoFile)
 
-            // Create content with video
+            // Create content with video using inline data
             val inputContent = content {
-                blob(mimeType, videoBytes)
+                inlineData(mimeType, videoBytes)
                 text(buildTranscriptionPrompt(language))
             }
 
