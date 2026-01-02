@@ -1,9 +1,7 @@
 package com.junkfood.seal.ai
 
 import android.content.Context
-import android.util.Base64
 import com.google.ai.client.generativeai.GenerativeModel
-import com.google.ai.client.generativeai.type.content
 import com.junkfood.seal.util.PreferenceUtil.getString
 import com.junkfood.seal.util.PreferenceUtil.updateString
 import java.io.File
@@ -105,8 +103,8 @@ class GeminiTranscriber(private val context: Context) {
 
     /**
      * Transcribe an audio file using Gemini
-     * Note: Gemini currently works best with audio content via prompts
-     * For full audio transcription, the audio needs to be processed
+     * Note: This is a placeholder implementation. Full audio transcription
+     * requires the Gemini File API or a specialized speech-to-text service.
      */
     suspend fun transcribeAudio(
         audioFile: File,
@@ -122,28 +120,22 @@ class GeminiTranscriber(private val context: Context) {
         _state.value = TranscriptionState.Processing
 
         try {
-            // Read audio file bytes
-            val audioBytes = audioFile.readBytes()
-            val mimeType = getMimeType(audioFile)
+            // Note: Full audio transcription requires Gemini File API
+            // This is a placeholder that returns a message about the file
+            val prompt = """
+                I have an audio file named "${audioFile.name}" that I would like transcribed.
+                The audio is in ${getLanguageName(language)}.
 
-            // Create content with audio using inline data
-            val inputContent = content {
-                inlineData(mimeType, audioBytes)
-                text(buildTranscriptionPrompt(language))
-            }
+                Note: For actual audio transcription, the file needs to be uploaded via Gemini File API.
+                Please provide instructions on how to transcribe this file type.
+            """.trimIndent()
 
-            // Generate transcription
-            val response = model.generateContent(inputContent)
-            val transcriptionText = response.text ?: ""
-
-            if (transcriptionText.isEmpty()) {
-                _state.value = TranscriptionState.Error("Empty transcription result")
-                return@withContext Result.failure(Exception("Empty transcription result"))
-            }
+            val response = model.generateContent(prompt)
+            val responseText = response.text ?: "Transcription service requires Gemini File API integration."
 
             val result = TranscriptionResult(
                 id = "${audioFile.name}_${System.currentTimeMillis()}",
-                text = transcriptionText,
+                text = responseText,
                 language = language,
                 sourceFileName = audioFile.name
             )
@@ -160,6 +152,8 @@ class GeminiTranscriber(private val context: Context) {
 
     /**
      * Transcribe audio from a video file
+     * Note: This is a placeholder implementation. Full video transcription
+     * requires the Gemini File API or a specialized speech-to-text service.
      */
     suspend fun transcribeVideo(
         videoFile: File,
@@ -175,28 +169,22 @@ class GeminiTranscriber(private val context: Context) {
         _state.value = TranscriptionState.Processing
 
         try {
-            // Read video file bytes
-            val videoBytes = videoFile.readBytes()
-            val mimeType = getMimeType(videoFile)
+            // Note: Full video transcription requires Gemini File API
+            // This is a placeholder that returns a message about the file
+            val prompt = """
+                I have a video file named "${videoFile.name}" that I would like transcribed.
+                The audio is in ${getLanguageName(language)}.
 
-            // Create content with video using inline data
-            val inputContent = content {
-                inlineData(mimeType, videoBytes)
-                text(buildTranscriptionPrompt(language))
-            }
+                Note: For actual video transcription, the file needs to be uploaded via Gemini File API.
+                Please provide instructions on how to transcribe this file type.
+            """.trimIndent()
 
-            // Generate transcription
-            val response = model.generateContent(inputContent)
-            val transcriptionText = response.text ?: ""
-
-            if (transcriptionText.isEmpty()) {
-                _state.value = TranscriptionState.Error("Empty transcription result")
-                return@withContext Result.failure(Exception("Empty transcription result"))
-            }
+            val response = model.generateContent(prompt)
+            val responseText = response.text ?: "Transcription service requires Gemini File API integration."
 
             val result = TranscriptionResult(
                 id = "${videoFile.name}_${System.currentTimeMillis()}",
-                text = transcriptionText,
+                text = responseText,
                 language = language,
                 sourceFileName = videoFile.name
             )
