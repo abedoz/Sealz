@@ -2,10 +2,6 @@ package com.junkfood.seal.cloud
 
 import android.app.Activity
 import android.content.Context
-import com.microsoft.graph.models.DriveItem
-import com.microsoft.graph.models.Folder
-import com.microsoft.graph.serviceclient.GraphServiceClient
-import com.microsoft.identity.client.AcquireTokenParameters
 import com.microsoft.identity.client.AuthenticationCallback
 import com.microsoft.identity.client.IAuthenticationResult
 import com.microsoft.identity.client.IPublicClientApplication
@@ -14,7 +10,6 @@ import com.microsoft.identity.client.PublicClientApplication
 import com.microsoft.identity.client.SignInParameters
 import com.microsoft.identity.client.exception.MsalException
 import java.io.File
-import java.io.FileInputStream
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -29,6 +24,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 
 class OneDriveProvider : CloudStorageProvider {
 
@@ -41,10 +38,10 @@ class OneDriveProvider : CloudStorageProvider {
     override val uploadState: StateFlow<CloudUploadState> = _uploadState.asStateFlow()
 
     private var msalApp: ISingleAccountPublicClientApplication? = null
-    private var graphClient: GraphServiceClient? = null
     private var currentAccount: CloudAccount? = null
     private var currentAccessToken: String? = null
     private lateinit var appContext: Context
+    private val httpClient = OkHttpClient()
 
     companion object {
         private val SCOPES = arrayOf("Files.ReadWrite", "User.Read")
@@ -104,10 +101,6 @@ class OneDriveProvider : CloudStorageProvider {
         return appContext.resources.getIdentifier("auth_config_onedrive", "raw", appContext.packageName)
     }
 
-    private fun hasMsalConfig(): Boolean {
-        return getMsalConfigResourceId() != 0
-    }
-
     override suspend fun signIn(activity: Activity): Result<CloudAccount> {
         _authState.value = CloudAuthState.Authenticating
 
@@ -137,7 +130,6 @@ class OneDriveProvider : CloudStorageProvider {
             }
 
             currentAccessToken = result.accessToken
-            setupGraphClient(result.accessToken)
 
             val account = CloudAccount(
                 providerType = CloudProviderType.ONEDRIVE,
@@ -159,19 +151,12 @@ class OneDriveProvider : CloudStorageProvider {
         }
     }
 
-    private fun setupGraphClient(accessToken: String) {
-        graphClient = GraphServiceClient { request ->
-            request.headers["Authorization"] = "Bearer $accessToken"
-        }
-    }
-
     override suspend fun signOut(): Result<Unit> {
         return try {
             suspendCoroutine { continuation ->
                 msalApp?.signOut(object : ISingleAccountPublicClientApplication.SignOutCallback {
                     override fun onSignOut() {
                         currentAccount = null
-                        graphClient = null
                         currentAccessToken = null
                         _authState.value = CloudAuthState.NotAuthenticated
                         continuation.resume(Result.success(Unit))
@@ -205,7 +190,6 @@ class OneDriveProvider : CloudStorageProvider {
             val uploadFileName = fileName ?: file.name
             _uploadState.value = CloudUploadState.Uploading(0f, uploadFileName)
 
-            val client = OkHttpClient()
             val mimeType = getMimeType(file)
 
             // Build the upload URL
@@ -224,11 +208,10 @@ class OneDriveProvider : CloudStorageProvider {
                 .put(requestBody)
                 .build()
 
-            val response = client.newCall(request).execute()
+            val response = httpClient.newCall(request).execute()
 
             if (response.isSuccessful) {
                 val responseBody = response.body?.string()
-                // Parse the response to get the file ID (simplified)
                 val fileId = parseFileIdFromResponse(responseBody)
                 _uploadState.value = CloudUploadState.Success(fileId, uploadFileName)
                 Result.success(fileId)
@@ -244,67 +227,113 @@ class OneDriveProvider : CloudStorageProvider {
     }
 
     private fun parseFileIdFromResponse(response: String?): String {
-        // Simple JSON parsing for the id field
         return response?.let {
-            val idPattern = """"id"\s*:\s*"([^"]+)"""".toRegex()
-            idPattern.find(it)?.groupValues?.getOrNull(1) ?: "unknown"
+            try {
+                JSONObject(it).optString("id", "unknown")
+            } catch (e: Exception) {
+                "unknown"
+            }
         } ?: "unknown"
     }
 
     override suspend fun listFolders(parentFolderId: String?): Result<List<CloudFolder>> =
         withContext(Dispatchers.IO) {
             try {
-                val client = graphClient
+                val token = currentAccessToken
                     ?: return@withContext Result.failure(Exception("Not authenticated"))
 
-                val children = if (parentFolderId != null) {
-                    client.me().drive().items().byDriveItemId(parentFolderId).children().get()
+                val path = if (parentFolderId != null) {
+                    "$GRAPH_ENDPOINT/me/drive/items/$parentFolderId/children?\$filter=folder ne null"
                 } else {
-                    client.me().drive().root().children().get()
+                    "$GRAPH_ENDPOINT/me/drive/root/children?\$filter=folder ne null"
                 }
 
-                val folders = children?.value?.filter { item ->
-                    item.folder != null
-                }?.map { item ->
-                    CloudFolder(
-                        id = item.id ?: "",
-                        name = item.name ?: "",
-                        path = item.name ?: ""
-                    )
-                } ?: emptyList()
+                val request = Request.Builder()
+                    .url(path)
+                    .header("Authorization", "Bearer $token")
+                    .get()
+                    .build()
 
-                Result.success(folders)
+                val response = httpClient.newCall(request).execute()
+
+                if (response.isSuccessful) {
+                    val responseBody = response.body?.string()
+                    val folders = parseFoldersFromResponse(responseBody)
+                    Result.success(folders)
+                } else {
+                    Result.failure(Exception("Failed to list folders: ${response.code}"))
+                }
             } catch (e: Exception) {
                 Result.failure(e)
             }
         }
+
+    private fun parseFoldersFromResponse(response: String?): List<CloudFolder> {
+        return response?.let {
+            try {
+                val json = JSONObject(it)
+                val items = json.optJSONArray("value") ?: return emptyList()
+                val folders = mutableListOf<CloudFolder>()
+
+                for (i in 0 until items.length()) {
+                    val item = items.getJSONObject(i)
+                    if (item.has("folder")) {
+                        folders.add(CloudFolder(
+                            id = item.optString("id", ""),
+                            name = item.optString("name", ""),
+                            path = item.optString("name", "")
+                        ))
+                    }
+                }
+                folders
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } ?: emptyList()
+    }
 
     override suspend fun createFolder(
         folderName: String,
         parentFolderId: String?
     ): Result<CloudFolder> = withContext(Dispatchers.IO) {
         try {
-            val client = graphClient
+            val token = currentAccessToken
                 ?: return@withContext Result.failure(Exception("Not authenticated"))
 
-            val driveItem = DriveItem().apply {
-                name = folderName
-                folder = Folder()
-            }
-
-            val createdFolder = if (parentFolderId != null) {
-                client.me().drive().items().byDriveItemId(parentFolderId).children().post(driveItem)
+            val path = if (parentFolderId != null) {
+                "$GRAPH_ENDPOINT/me/drive/items/$parentFolderId/children"
             } else {
-                client.me().drive().root().children().post(driveItem)
+                "$GRAPH_ENDPOINT/me/drive/root/children"
             }
 
-            Result.success(
-                CloudFolder(
-                    id = createdFolder?.id ?: "",
-                    name = createdFolder?.name ?: folderName,
-                    path = createdFolder?.name ?: folderName
-                )
-            )
+            val jsonBody = JSONObject().apply {
+                put("name", folderName)
+                put("folder", JSONObject())
+                put("@microsoft.graph.conflictBehavior", "rename")
+            }
+
+            val requestBody = jsonBody.toString().toRequestBody("application/json".toMediaType())
+
+            val request = Request.Builder()
+                .url(path)
+                .header("Authorization", "Bearer $token")
+                .header("Content-Type", "application/json")
+                .post(requestBody)
+                .build()
+
+            val response = httpClient.newCall(request).execute()
+
+            if (response.isSuccessful) {
+                val responseBody = response.body?.string()
+                val json = JSONObject(responseBody ?: "{}")
+                Result.success(CloudFolder(
+                    id = json.optString("id", ""),
+                    name = json.optString("name", folderName),
+                    path = json.optString("name", folderName)
+                ))
+            } else {
+                Result.failure(Exception("Failed to create folder: ${response.code}"))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }

@@ -42,7 +42,6 @@ googlePlayServicesAuth = "21.0.0"
 googleApiClientAndroid = "2.2.0"
 googleApiServicesDrive = "v3-rev20231128-2.0.0"
 microsoftIdentityClient = "4.9.0"
-microsoftGraph = "5.77.0"
 
 # AI/ML
 geminiSdk = "0.7.0"
@@ -125,9 +124,8 @@ google-play-services-auth = { group = "com.google.android.gms", name = "play-ser
 google-api-client-android = { group = "com.google.api-client", name = "google-api-client-android", version.ref = "googleApiClientAndroid" }
 google-api-services-drive = { group = "com.google.apis", name = "google-api-services-drive", version.ref = "googleApiServicesDrive" }
 
-# Cloud Storage - Microsoft OneDrive
+# Cloud Storage - Microsoft OneDrive (MSAL only, Graph API calls via OkHttp)
 microsoft-identity-client = { group = "com.microsoft.identity.client", name = "msal", version.ref = "microsoftIdentityClient" }
-microsoft-graph = { group = "com.microsoft.graph", name = "microsoft-graph", version.ref = "microsoftGraph" }
 
 # AI/ML - Gemini
 google-ai-generativeai = { group = "com.google.ai.client.generativeai", name = "generativeai", version.ref = "geminiSdk" }
@@ -175,5 +173,4 @@ cloudStorageGoogle = ["google-play-services-auth",
     "google-api-client-android",
     "google-api-services-drive"]
 
-cloudStorageMicrosoft = ["microsoft-identity-client",
-    "microsoft-graph"]
+cloudStorageMicrosoft = ["microsoft-identity-client"]
